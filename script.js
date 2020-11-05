@@ -3,6 +3,23 @@
   const peersEl = document.querySelector(".peers");
   const sendButtonEl = document.querySelector(".send-new-message-button");
   const newMessageEl = document.querySelector(".new-message");
+  const messagesEl = document.querySelector(".messages");
+  const theirVideoContainer = document.querySelector(".video-container.them");
+
+  const printMessage = (text, who) => {
+    const messageEl = document.createElement("div");
+    messageEl.classList.add("message", who);
+    let today = new Date();
+    let time =
+      ("0" + today.getHours()).slice(-2) +
+      ":" +
+      ("0" + today.getMinutes()).slice(-2) +
+      ":" +
+      ("0" + today.getSeconds()).slice(-2);
+    messageEl.innerHTML = `<div>${text} <br>${time}</div>`;
+    messagesEl.append(messageEl);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  };
   // get peer id from URL (no hash)
   const myPeerId = location.hash.slice(1);
   // connect to peer server
@@ -42,17 +59,14 @@
 
   // On incoming connectoin.
   peer.on("connection", (connection) => {
-    console.log("connection");
-
+    // Close existing connection and set new connection.
+    dataConnection && dataConnection.close();
     dataConnection = connection;
-
-    dataConnection.on("data", (textMessage) => {
-      console.log(dataConnection.peer + ": " + textMessage);
-    });
 
     const event = new CustomEvent("peer-changed", { detail: connection.peer });
     document.dispatchEvent(event);
   });
+
   // event listener for click "refresh list"
   const refreshPeersButtonEl = document.querySelector(".list-all-peers-button");
   refreshPeersButtonEl.addEventListener("click", (e) => {
@@ -64,8 +78,8 @@
         // loop through all peers and print them as buttons in a list
         .map((peer) => {
           return `<li>
-                      <button class="connect-button peerId-${peer}">${peer}</button>
-                          </li>`;
+      <button class="connect-button peerId-${peer}">${peer}</button>
+      </li>`;
         })
         .join("");
       peersEl.innerHTML = `<ul>${peersList}</ul>`;
@@ -81,10 +95,6 @@
     // connect to peer
     dataConnection = peer.connect(theirPeerId);
 
-    dataConnection.on("data", (textMessage) => {
-      console.log(dataConnection.peer + ": " + textMessage);
-    });
-
     dataConnection.on("open", () => {
       // dispatch Custom event with connected peer id
       const event = new CustomEvent("peer-changed", {
@@ -93,7 +103,7 @@
       document.dispatchEvent(event);
     });
   });
-  // listen for custom event 'peer changed''
+  // Event listener for custom event 'peer changed'.
   document.addEventListener("peer-changed", (e) => {
     const peerId = e.detail;
     // get clicked button
@@ -106,13 +116,44 @@
     });
     // add class 'connected to clicked connectbutton
     connectButtonEl.classList.add("connected");
-    console.log(peerId);
+
+    // Listen for incoming data/textmessage.
+    dataConnection.on("data", (textMessage) => {
+      printMessage(textMessage, "them");
+    });
+
+    // Set focus on text input field.
+    newMessageEl.focus();
+
+    // Change elements on video-container and peer ID.
+    theirVideoContainer.querySelector(".name").innerText = peerId;
+    theirVideoContainer.classList.add("connected");
+    theirVideoContainer.querySelector(".start").classList.add("active");
+    theirVideoContainer.querySelector(".stop").classList.remove("active");
   });
 
-  // Event listener for click on"send".
-  sendButtonEl.addEventListener("click", () => {
+  // Send message to peer.
+  const sendMessage = (e) => {
     if (!dataConnection) return;
-    // Get new message from text input.
-    dataConnection.send(newMessageEl.value);
+    if (newMessageEl.value === "") return;
+    if (e.type === "click" || e.keyCode === 13) {
+      dataConnection.send(newMessageEl.value);
+      printMessage(newMessageEl.value, "me");
+      // Clear text input field.
+      newMessageEl.value = "";
+    }
+    // Set focus on text input field.
+    newMessageEl.focus();
+  };
+  // Event listener for "send".
+  sendButtonEl.addEventListener("click", sendMessage);
+  newMessageEl.addEventListener("keyup", sendMessage);
+
+  // Event listener for click "Start video chat".
+  const startVideoButton = document.querySelector(".start");
+  const stopVideoButton = document.querySelector(".stop");
+  startVideoButton.addEventListener("click", () => {
+    startVideoButton.classList.remove("active");
+    stopVideoButton.classList.add("active");
   });
 })();
