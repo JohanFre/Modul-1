@@ -1,10 +1,20 @@
 (function () {
+  let mediaConnection = null;
   let dataConnection = null;
   const peersEl = document.querySelector(".peers");
   const sendButtonEl = document.querySelector(".send-new-message-button");
   const newMessageEl = document.querySelector(".new-message");
   const messagesEl = document.querySelector(".messages");
   const theirVideoContainer = document.querySelector(".video-container.them");
+  const videoOfThemEl = document.querySelector(".video-container.them video");
+  const videoOfMeEl = document.querySelector(".video-container.me video");
+
+  navigator.mediaDevices
+    .getUserMedia({ audio: false, video: true })
+    .then((stream) => {
+      videoOfMeEl.muted = true;
+      videoOfMeEl.srcObject = stream;
+    });
 
   const printMessage = (text, who) => {
     const messageEl = document.createElement("div");
@@ -57,7 +67,7 @@
     console.error(errorMessage);
   });
 
-  // On incoming connectoin.
+  // On incoming connection.
   peer.on("connection", (connection) => {
     // Close existing connection and set new connection.
     dataConnection && dataConnection.close();
@@ -67,7 +77,28 @@
     document.dispatchEvent(event);
   });
 
-  // event listener for click "refresh list"
+  // Event listener for incoming video call.
+  peer.on("call", (incomingCall) => {
+    mediaConnection && mediaConnection.close();
+
+    // Change state on start/stop button.
+    startVideoButton.classList.remove("active");
+    stopVideoButton.classList.add("active");
+
+    // Answer incoming call.
+    navigator.mediaDevices
+      .getUserMedia({ audio: false, video: true })
+      .then((myStream) => {
+        incomingCall.answer(myStream);
+        mediaConnection = incomingCall;
+        mediaConnection.on("stream", (theirStream) => {
+          videoOfThemEl.muted = true;
+          videoOfThemEl.srcObject = theirStream;
+        });
+      });
+  });
+
+  // Event listener for click "Refresh list"
   const refreshPeersButtonEl = document.querySelector(".list-all-peers-button");
   refreshPeersButtonEl.addEventListener("click", (e) => {
     peer.listAllPeers((peers) => {
@@ -155,5 +186,25 @@
   startVideoButton.addEventListener("click", () => {
     startVideoButton.classList.remove("active");
     stopVideoButton.classList.add("active");
+
+    // Start video call with remote peer.
+    navigator.mediaDevices
+      .getUserMedia({ audio: false, video: true })
+      .then((myStream) => {
+        mediaConnection && mediaConnection.close();
+        const theirPeerId = dataConnection.peer;
+        mediaConnection = peer.call(theirPeerId, myStream);
+        mediaConnection.on("stream", (theirStream) => {
+          videoOfThemEl.muted = true;
+          videoOfThemEl.srcObject = theirStream;
+        });
+      });
+  });
+
+  // Event listener for click "Hang up"
+  stopVideoButton.addEventListener("click", () => {
+    stopVideoButton.classList.remove("active");
+    startVideoButton.classList.add("active");
+    mediaConnection && mediaConnection.close();
   });
 })();
