@@ -1,4 +1,6 @@
+// Immediately Invoked Function Expression.
 (function () {
+  // Global variables.
   let mediaConnection = null;
   let dataConnection = null;
   const peersEl = document.querySelector(".peers");
@@ -9,6 +11,7 @@
   const videoOfThemEl = document.querySelector(".video-container.them video");
   const videoOfMeEl = document.querySelector(".video-container.me video");
 
+  // Videostream of me.
   navigator.mediaDevices
     .getUserMedia({ audio: false, video: true })
     .then((stream) => {
@@ -16,6 +19,7 @@
       videoOfMeEl.srcObject = stream;
     });
 
+  // Recieve message from peer.
   const printMessage = (text, who) => {
     const messageEl = document.createElement("div");
     messageEl.classList.add("message", who);
@@ -30,9 +34,9 @@
     messagesEl.append(messageEl);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   };
-  // get peer id from URL (no hash)
+  // Get peer id from URL (no hash)
   const myPeerId = location.hash.slice(1);
-  // connect to peer server
+  // Connect to peer server
   let peer = new Peer(myPeerId, {
     host: "glajan.com",
     port: 8443,
@@ -57,12 +61,12 @@
       ],
     },
   });
-  // print peer id on connection "open" event.
+  // Print peer id on connection "open" event.
   peer.on("open", (id) => {
     const myPeerIdEl = document.querySelector(".my-peer-id");
     myPeerIdEl.innerText = id;
   });
-  // error message if there is an error
+  // Error message if there is an error
   peer.on("error", (errorMessage) => {
     console.error(errorMessage);
   });
@@ -102,11 +106,11 @@
   const refreshPeersButtonEl = document.querySelector(".list-all-peers-button");
   refreshPeersButtonEl.addEventListener("click", (e) => {
     peer.listAllPeers((peers) => {
-      // add peers to html document
+      // Add peers to html document.
       const peersList = peers
-        // filter out our own name
+        // Filter out our own name.
         .filter((peerId) => peerId !== peer._id)
-        // loop through all peers and print them as buttons in a list
+        // Loop through all peers and print them as buttons in a list.
         .map((peer) => {
           return `<li>
       <button class="connect-button peerId-${peer}">${peer}</button>
@@ -116,18 +120,18 @@
       peersEl.innerHTML = `<ul>${peersList}</ul>`;
     });
   });
-  // event listeneer for click on peer button
+  // Event listeneer for click on peer button.
   peersEl.addEventListener("click", (event) => {
     if (!event.target.classList.contains("connect-button"));
-    // get peerId from button element
+    // Get peerId from button element.
     const theirPeerId = event.target.innerText;
-    // close existing connection
+    // Close existing connection.
     dataConnection && dataConnection.close();
-    // connect to peer
+    // Connect to peer.
     dataConnection = peer.connect(theirPeerId);
 
     dataConnection.on("open", () => {
-      // dispatch Custom event with connected peer id
+      // Dispatch Custom event with connected peer id.
       const event = new CustomEvent("peer-changed", {
         detail: theirPeerId,
       });
@@ -137,15 +141,15 @@
   // Event listener for custom event 'peer changed'.
   document.addEventListener("peer-changed", (e) => {
     const peerId = e.detail;
-    // get clicked button
+    // Get clicked button.
     const connectButtonEl = document.querySelector(
       `.connect-button.peerId-${peerId}`
     );
-    //remove class from connected
+    // Remove class from connected.
     document.querySelectorAll(".connect-button.connected").forEach((button) => {
       button.classList.remove("connected");
     });
-    // add class 'connected to clicked connectbutton
+    // Add class 'connected to clicked connectbutton.
     connectButtonEl.classList.add("connected");
 
     // Listen for incoming data/textmessage.
